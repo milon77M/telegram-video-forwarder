@@ -1,9 +1,0 @@
-node_modules/
-dist/
-.dev.vars/
-wrangler.toml
-*.log
-.DS_Store
-.env
-.vscode/
-.idea/
