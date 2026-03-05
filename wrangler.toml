@@ -1,3 +1,3 @@
-name = "telegram-worker-bot"
+name = "telegram-video-forwarder"
 main = "index.js"
 compatibility_date = "2026-03-05"
