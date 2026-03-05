@@ -1,22 +1,18 @@
 name = "telegram-video-forwarder"
-main = "src/index.ts"
-compatibility_date = "2024-12-18"
-compatibility_flags = ["nodejs_compat"]
-
-[observability]
-enabled = true
+main = "src/index.js"
+compatibility_date = "2025-03-05"
 
 [vars]
 TELEGRAM_BOT_USERNAME = "your_bot_username"
 SERVER_URL = "https://telegram-video-forwarder.your-username.workers.dev"
-ADMIN_ID = "7383046042"  # @userinfobot থেকে পাওয়া আইডি বসান
-SOURCE_CHANNEL_ID = "-1003657533852"  # আপনার দেওয়া চ্যানেল আইডি
+ADMIN_ID = "7383046042"
+SOURCE_CHANNEL_ID = "-1003657533852"
 
 [[kv_namespaces]]
 binding = "VIDEO_TOKENS"
-id = "0f6b66dde48f49e495208eea976fb0e6"  # KV তৈরি করার পর ID বসাবেন
+id = "0f6b66dde48f49e495208eea976fb0e6"
 
 [[d1_databases]]
 binding = "DB"
 database_name = "video-token-db"
-database_id = "79906f8b-8e35-4189-b8b1-4fa9202f1734"  # D1 তৈরি করার পর ID বসাবেন
+database_id = "79906f8b-8e35-4189-b8b1-4fa9202f1734"
