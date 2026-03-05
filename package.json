@@ -1,21 +1,17 @@
 {
   "name": "telegram-video-forwarder",
   "version": "1.0.0",
-  "description": "Telegram Video Forwarder Bot for Cloudflare Workers",
-  "main": "src/index.ts",
+  "description": "Telegram Video Forwarder Bot",
+  "main": "src/index.js",
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
-    "build": "wrangler deploy --dry-run --outdir=dist",
-    "migrate:local": "wrangler d1 execute video-token-db --local --file=./migrations/0001_initial.sql",
-    "migrate:remote": "wrangler d1 execute video-token-db --remote --file=./migrations/0001_initial.sql"
+    "build": "echo 'No build needed'"
   },
-  "keywords": ["telegram", "bot", "cloudflare", "workers", "video-forwarder"],
+  "keywords": ["telegram", "bot", "cloudflare"],
   "author": "",
   "license": "MIT",
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20240222.0",
-    "typescript": "^5.3.3",
-    "wrangler": "^3.30.0"
+    "wrangler": "^4.0.0"
   }
 }
