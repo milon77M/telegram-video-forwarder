@@ -10,7 +10,7 @@ async function handleRequest(request) {
     if (body.message && body.message.text === "/start") {
       const chat_id = body.message.chat.id
 
-      const token = "8046672368:AAHLTyEylZ9P-p2aabImCXhsl8X86HUC50"
+      const token = "8046672368:AAECRA4-jlDnvS-iOE8YCh-nnFuWGGFoims"
       const telegramUrl = `https://api.telegram.org/bot${token}/sendMessage`
 
       await fetch(telegramUrl, {
