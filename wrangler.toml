@@ -1,4 +1,4 @@
-name = "telegram-welcome-bot"
+name = "telegram-video-forwarder"
 main = "src/index.js"
 compatibility_date = "2024-01-01"
 
