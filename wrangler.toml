@@ -3,10 +3,9 @@ main = "src/index.js"
 compatibility_date = "2025-03-05"
 
 [vars]
-TELEGRAM_BOT_USERNAME = "your_bot_username"
-SERVER_URL = "https://telegram-video-forwarder.your-username.workers.dev"
 ADMIN_ID = "7383046042"
 SOURCE_CHANNEL_ID = "-1003657533852"
+SERVER_URL = "https://telegram-video-forwarder.your-username.workers.dev"
 
 [[kv_namespaces]]
 binding = "VIDEO_TOKENS"
