@@ -1,10 +1,10 @@
 const BOT_TOKEN = "8046672368:AAHLTyEylZ9P-rP2aabImCXhsl8X86HUC50"
 const API = `https://api.telegram.org/bot${BOT_TOKEN}`
 
-// Admin (optional, link generation ke control korbe)
+// Admin (link generation control)
 const ADMIN_ID = 7383046042
 
-// Source channels (message forward hobe)
+// Source channel ID
 const SOURCE_CHANNEL_ID = -1003657533852
 
 // Force join channels
@@ -13,7 +13,7 @@ const FORCE_JOIN_CHANNELS = [
   { username: "@KCHindiDrama", name: "K&C Drama Hindi" }
 ]
 
-// Auto delete time in milliseconds (20 minutes)
+// Auto delete time (20 minutes)
 const AUTO_DELETE_TIME = 20 * 60 * 1000
 
 export default {
@@ -21,85 +21,80 @@ export default {
     if (req.method === "POST") {
       const update = await req.json()
 
+      if (!update.message) return new Response("ok")
+
+      const msg = update.message
+      const text = msg.text
+      const user_id = msg.from.id
+
       // ---------------------------
-      // Message from user
+      // Admin link generation
       // ---------------------------
-      if (update.message) {
-        const msg = update.message
-        const text = msg.text
-        const user_id = msg.from.id
+      if (user_id == ADMIN_ID && text && text.includes("t.me/c/")) {
+        const parts = text.split("/")
+        const message_id = parts[parts.length - 1]
 
-        // ---------------------------
-        // Link generation (Admin only)
-        // ---------------------------
-        if (user_id == ADMIN_ID && text && text.includes("t.me/c/")) {
-          const parts = text.split("/")
-          const message_id = parts[parts.length - 1]
+        const token = crypto.randomUUID().slice(0, 8)
+        await env.VIDEO_TOKENS.put(token, JSON.stringify({ message_id, clicks: 0, users: [] }))
 
-          const token = crypto.randomUUID().slice(0, 8)
-          await env.VIDEO_TOKENS.put(token, JSON.stringify({ message_id, clicks: 0, users: [] }))
+        const link = `https://t.me/${(await getBot()).username}?start=${token}`
+        await sendMessage(user_id, `Your Link:\n${link}`)
+        return new Response("ok")
+      }
 
-          const link = `https://t.me/${(await getBot()).username}?start=${token}`
-          await sendMessage(user_id, `Your Link:\n${link}`)
+      // ---------------------------
+      // User clicked /start token
+      // ---------------------------
+      if (text && text.startsWith("/start")) {
+        const token = text.split(" ")[1]
+        if (!token) return new Response("ok")
+
+        const tokenDataRaw = await env.VIDEO_TOKENS.get(token)
+        if (!tokenDataRaw) {
+          await sendMessage(user_id, "❌ Invalid link")
           return new Response("ok")
         }
 
-        // ---------------------------
-        // User clicked /start token
-        // ---------------------------
-        if (text && text.startsWith("/start")) {
-          const token = text.split(" ")[1]
-          if (!token) return new Response("ok")
+        let tokenData = JSON.parse(tokenDataRaw)
 
-          // Get token data
-          const tokenDataRaw = await env.VIDEO_TOKENS.get(token)
-          if (!tokenDataRaw) {
-            await sendMessage(user_id, "❌ Invalid link")
+        // ---------------------------
+        // Force join check
+        // ---------------------------
+        for (let ch of FORCE_JOIN_CHANNELS) {
+          const member = await getChatMember(ch.username, user_id)
+          if (!member || (member.status !== "member" && member.status !== "creator" && member.status !== "administrator")) {
+            let join_msg = `⚠️ You must join these channels first:\n`
+            FORCE_JOIN_CHANNELS.forEach(c => join_msg += `${c.name}: ${c.username}\n`)
+            await sendMessage(user_id, join_msg)
             return new Response("ok")
           }
+        }
 
-          let tokenData = JSON.parse(tokenDataRaw)
+        // ---------------------------
+        // Forward video (normal forward style)
+        // ---------------------------
+        const forwardRes = await forwardMessage(user_id, SOURCE_CHANNEL_ID, tokenData.message_id)
 
-          // ---------------------------
-          // Force join check
-          // ---------------------------
-          for (let ch of FORCE_JOIN_CHANNELS) {
-            const member = await getChatMember(ch.username, user_id)
-            if (!member || (member.status !== "member" && member.status !== "creator" && member.status !== "administrator")) {
-              let join_msg = `⚠️ You must join these channels first:\n`
-              FORCE_JOIN_CHANNELS.forEach(c => join_msg += `${c.name}: ${c.username}\n`)
-              await sendMessage(user_id, join_msg)
-              return new Response("ok")
-            }
-          }
+        // ---------------------------
+        // Update analytics
+        // ---------------------------
+        tokenData.clicks += 1
+        if (!tokenData.users.includes(user_id)) tokenData.users.push(user_id)
+        await env.VIDEO_TOKENS.put(token, JSON.stringify(tokenData))
 
-          // ---------------------------
-          // Forward video
-          // ---------------------------
-          const sentMessage = await copyMessage(user_id, SOURCE_CHANNEL_ID, tokenData.message_id)
+        // ---------------------------
+        // Info message + auto delete notice
+        // ---------------------------
+        await sendMessage(user_id, "ভিডিওটি ফরওয়ার্ড করা হলো। ২০ মিনিট পরে অটো ডিলিট হয়ে যাবে.\nVideo forwarded. It will auto-delete after 20 minutes.")
 
-          // ---------------------------
-          // Update token analytics
-          // ---------------------------
-          tokenData.clicks += 1
-          if (!tokenData.users.includes(user_id)) tokenData.users.push(user_id)
-          await env.VIDEO_TOKENS.put(token, JSON.stringify(tokenData))
-
-          // ---------------------------
-          // Send info + auto delete notice
-          // ---------------------------
-          const infoMsg = "ভিডিওটি ফরওয়ার্ড করা হলো। ২০ মিনিট পরে অটো ডিলিট হয়ে যাবে.\nVideo forwarded. It will auto-delete after 20 minutes."
-          await sendMessage(user_id, infoMsg)
-
-          // ---------------------------
-          // Schedule auto-delete
-          // ---------------------------
-          if (sentMessage && sentMessage.result && sentMessage.result.message_id) {
-            const message_id = sentMessage.result.message_id
-            setTimeout(async () => {
-              await deleteMessage(user_id, message_id)
-            }, AUTO_DELETE_TIME)
-          }
+        // ---------------------------
+        // Auto delete the forwarded message after 20 min
+        // ---------------------------
+        if (forwardRes && forwardRes.result && forwardRes.result.message_id) {
+          const message_id = forwardRes.result.message_id
+          setTimeout(async () => {
+            await deleteMessage(user_id, message_id)
+          }, AUTO_DELETE_TIME)
         }
       }
 
@@ -111,7 +106,7 @@ export default {
 }
 
 // ---------------------------
-// Telegram API helper functions
+// Telegram API helpers
 // ---------------------------
 async function sendMessage(chat_id, text) {
   await fetch(`${API}/sendMessage`, {
@@ -121,11 +116,16 @@ async function sendMessage(chat_id, text) {
   })
 }
 
-async function copyMessage(chat_id, from_chat_id, message_id) {
-  const res = await fetch(`${API}/copyMessage`, {
+async function forwardMessage(chat_id, from_chat_id, message_id) {
+  const res = await fetch(`${API}/forwardMessage`, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ chat_id, from_chat_id, message_id })
+    body: JSON.stringify({
+      chat_id,
+      from_chat_id,
+      message_id,
+      disable_notification: false
+    })
   })
   return await res.json()
 }
@@ -148,8 +148,8 @@ async function getChatMember(chat_username, user_id) {
     const res = await fetch(`${API}/getChatMember?chat_id=${chat_username}&user_id=${user_id}`)
     const data = await res.json()
     if (data.ok) return data.result
-    else return null
+    return null
   } catch (e) {
     return null
   }
-        }
+}
