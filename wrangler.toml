@@ -1,7 +1,8 @@
 name = "telegram-video-forwarder"
 main = "src/index.js"
-compatibility_date = "2025-03-05"
+compatibility_date = "2024-01-01"
 
-[[kv_namespaces]]
-binding = "VIDEO_TOKENS"
-id = "0f6b66dde48f49e495208eea976fb0e6"
+[vars]
+BOT_TOKEN = "8046672368:AAHLTyEylZ9P-rP2aabImCXhsl8X86HUC50"
+API_HASH = "d3e9d2f01d3291e87ea65298317f86b8"
+API_ID = "22134923"
