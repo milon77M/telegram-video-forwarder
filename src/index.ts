@@ -35,8 +35,9 @@ function generateToken() {
 
 // HTML পেজ তৈরি
 function createVideoPage(messageId, chatId, views, serverUrl, token) {
-  const telegramUrl = `https://t.me/c/${chatId.toString().replace('-100', '')}/${messageId}`;
-  const embedUrl = `https://t.me/${chatId}/${messageId}?embed=1`;
+  const cleanChatId = chatId.toString().replace('-100', '');
+  const telegramUrl = `https://t.me/c/${cleanChatId}/${messageId}`;
+  const embedUrl = `https://t.me/c/${cleanChatId}/${messageId}?embed=1`;
   
   return `<!DOCTYPE html>
 <html>
@@ -123,14 +124,14 @@ export default {
             // KV-তে সেভ
             await env.VIDEO_TOKENS.put(token, JSON.stringify(tokenData));
             
-            // D1-তে সেভ
+            // D1-তে সেভ (যদি সম্ভব হয়)
             try {
               await env.DB.prepare(
                 `INSERT INTO video_tokens (token, message_id, chat_id, views, created_at) 
                  VALUES (?, ?, ?, ?, ?)`
               ).bind(token, messageId, env.SOURCE_CHANNEL_ID, 0, Date.now()).run();
             } catch (dbErr) {
-              console.error('DB error:', dbErr);
+              console.error('DB error (non-critical):', dbErr);
             }
             
             const serverUrl = env.SERVER_URL || `${url.protocol}//${url.host}`;
