@@ -1,0 +1,7 @@
+name = "telegram-video-forwarder"
+main = "src/index.js"
+compatibility_date = "2025-03-05"
+
+[[kv_namespaces]]
+binding = "VIDEO_TOKENS"
+id = "0f6b66dde48f49e495208eea976fb0e6"
