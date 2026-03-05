@@ -1,57 +1,20 @@
-async function callTelegramAPI(token, method, payload) {
-  const url = `https://api.telegram.org/bot${token}/${method}`;
-
-  const res = await fetch(url, {
+async function tg(token, method, data) {
+  const res = await fetch(`https://api.telegram.org/bot${token}/${method}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload)
+    body: JSON.stringify(data)
   });
 
   return res.json();
 }
 
-async function sendMessage(token, chatId, text) {
-  return callTelegramAPI(token, "sendMessage", {
-    chat_id: chatId,
-    text: text
-  });
+function extractMessageId(link) {
+  const m = link.match(/t\.me\/c\/(\d+)\/(\d+)/);
+  return m ? Number(m[2]) : null;
 }
 
-function extractMessageIdFromLink(link) {
-  const match = link.match(/t\.me\/c\/(\d+)\/(\d+)/);
-  return match ? parseInt(match[2]) : null;
-}
-
-function generateToken() {
-  return crypto.randomUUID();
-}
-
-function createVideoPage(messageId, channelId, views) {
-  const clean = channelId.toString().replace("-100", "");
-
-  const embedUrl = `https://t.me/c/${clean}/${messageId}?embed=1`;
-
-  return `
-  <html>
-  <head>
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Video</title>
-  <style>
-  body{font-family:Arial;text-align:center;background:#111;color:white;padding:20px}
-  iframe{width:100%;max-width:700px;height:400px;border:none;border-radius:10px}
-  </style>
-  </head>
-
-  <body>
-  <h2>Video Player</h2>
-
-  <iframe src="${embedUrl}" allowfullscreen></iframe>
-
-  <p>Views: ${views}</p>
-
-  </body>
-  </html>
-  `;
+function generateCode() {
+  return Math.random().toString(36).substring(2, 10);
 }
 
 export default {
@@ -60,92 +23,128 @@ export default {
 
     const url = new URL(request.url);
 
-    if (url.pathname === "/ping") {
-      return new Response("OK");
+    // ===== USER CLICK LINK =====
+    if (url.pathname.startsWith("/v/")) {
+
+      const code = url.pathname.split("/v/")[1];
+
+      const data = await env.VIDEO_KV.get(code);
+
+      if (!data) {
+        return new Response("Invalid link");
+      }
+
+      const info = JSON.parse(data);
+
+      const startLink = `https://t.me/${env.BOT_USERNAME}?start=${code}`;
+
+      return Response.redirect(startLink);
     }
+
 
     // ===== TELEGRAM WEBHOOK =====
     if (url.pathname === "/webhook" && request.method === "POST") {
 
       const update = await request.json();
 
-      if (!update.message) {
-        return new Response("ok");
-      }
+      if (!update.message) return new Response("ok");
 
       const chatId = update.message.chat.id;
       const text = update.message.text || "";
 
-      // ADMIN CHECK
-      if (String(chatId) !== env.ADMIN_ID) {
-        return new Response("ok");
-      }
+      // ===== /start command =====
+      if (text.startsWith("/start")) {
 
-      if (text === "/start") {
-        await sendMessage(env.BOT_TOKEN, chatId,
-          "Send Telegram private channel video link.\nExample:\nhttps://t.me/c/123456/7"
-        );
-        return new Response("ok");
-      }
+        const parts = text.split(" ");
 
-      if (text.includes("t.me/")) {
+        if (parts.length === 1) {
 
-        const messageId = extractMessageIdFromLink(text);
+          await tg(env.BOT_TOKEN, "sendMessage", {
+            chat_id: chatId,
+            text:
+`👋 Welcome!
 
-        if (!messageId) {
-          await sendMessage(env.BOT_TOKEN, chatId, "Invalid link");
+Send me a private channel video link.
+
+Example:
+https://t.me/c/123456/7`
+          });
+
           return new Response("ok");
         }
 
-        const token = generateToken();
+        const code = parts[1];
 
-        const data = {
-          messageId,
-          channelId: env.SOURCE_CHANNEL_ID,
-          views: 0
-        };
+        const data = await env.VIDEO_KV.get(code);
 
-        await env.VIDEO_TOKENS.put(token, JSON.stringify(data));
+        if (!data) {
 
-        const link = `${env.SERVER_URL}/video/${token}`;
+          await tg(env.BOT_TOKEN, "sendMessage", {
+            chat_id: chatId,
+            text: "❌ Link expired"
+          });
 
-        await sendMessage(env.BOT_TOKEN, chatId,
-          `Video link ready:\n${link}`
-        );
+          return new Response("ok");
+        }
+
+        const info = JSON.parse(data);
+
+        await tg(env.BOT_TOKEN, "forwardMessage", {
+          chat_id: chatId,
+          from_chat_id: env.SOURCE_CHANNEL_ID,
+          message_id: info.message_id
+        });
+
+        return new Response("ok");
+      }
+
+
+      // ===== ADMIN SEND VIDEO LINK =====
+      if (String(chatId) === env.ADMIN_ID) {
+
+        if (text.includes("t.me/")) {
+
+          const messageId = extractMessageId(text);
+
+          if (!messageId) {
+
+            await tg(env.BOT_TOKEN, "sendMessage", {
+              chat_id: chatId,
+              text: "❌ Invalid link"
+            });
+
+            return new Response("ok");
+          }
+
+          const code = generateCode();
+
+          await env.VIDEO_KV.put(
+            code,
+            JSON.stringify({
+              message_id: messageId
+            })
+          );
+
+          const link = `${url.origin}/v/${code}`;
+
+          await tg(env.BOT_TOKEN, "sendMessage", {
+            chat_id: chatId,
+            text:
+`✅ Link generated
+
+${link}
+
+Share this link with users`
+          });
+
+        }
+
       }
 
       return new Response("ok");
     }
 
-    // ===== USER VIDEO PAGE =====
-    if (url.pathname.startsWith("/video/")) {
-
-      const token = url.pathname.split("/")[2];
-
-      const data = await env.VIDEO_TOKENS.get(token);
-
-      if (!data) {
-        return new Response("Invalid link", { status: 404 });
-      }
-
-      const video = JSON.parse(data);
-
-      video.views++;
-
-      await env.VIDEO_TOKENS.put(token, JSON.stringify(video));
-
-      const html = createVideoPage(
-        video.messageId,
-        video.channelId,
-        video.views
-      );
-
-      return new Response(html, {
-        headers: { "content-type": "text/html;charset=UTF-8" }
-      });
-    }
-
-    return new Response("Running");
+    return new Response("Bot running");
   }
 
 };
