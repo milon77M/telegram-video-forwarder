@@ -19,4 +19,4 @@ id = ""  # KV তৈরি করার পর ID বসাবেন
 [[d1_databases]]
 binding = "DB"
 database_name = "video-token-db"
-database_id = ""  # D1 তৈরি করার পর ID বসাবেন
+database_id = "79906f8b-8e35-4189-b8b1-4fa9202f1734"  # D1 তৈরি করার পর ID বসাবেন
