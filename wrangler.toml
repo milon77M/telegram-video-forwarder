@@ -1,11 +1,3 @@
-name = "telegram-video-forwarder"
-main = "src/index.js"
-compatibility_date = "2024-01-01"
-
-[vars]
-BOT_TOKEN = "8046672368:AAHLTyEylZ9P-rP2aabImCXhsl8X86HUC50"
-API_ID = "22134923"
-API_HASH = "d3e9d2f01d3291e87ea65298317f86b8"
-
-[env.production]
-vars = { BOT_TOKEN = "8046672368:AAHLTyEylZ9P-rP2aabImCXhsl8X86HUC50" }
+name = "telegram-worker-bot"
+main = "index.js"
+compatibility_date = "2026-03-05"
